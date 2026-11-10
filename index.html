@@ -50,22 +50,28 @@
         
         <div>
           <label class="block text-xs text-gray-400 mb-1">Link / URL do Mangá *</label>
-          <input type="url" id="mangaUrl" required onchange="autoFillFromUrl()" placeholder="https://site.com/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+          <input type="url" id="mangaUrl" required oninput="handleUrlInput()" placeholder="https://site.com/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
         </div>
 
-        <!-- Extração via Código-Fonte (User-Assisted Scraping) -->
-        <div class="bg-gray-950/60 border border-gray-800/80 rounded-xl p-3">
-          <div class="flex justify-between items-center mb-1.5">
-            <label class="text-xs font-medium text-brand-400 flex items-center gap-1.5">
-              <i class="fa-solid fa-code"></i> Extração Automática via HTML (Opcional)
-            </label>
-            <span class="text-[10px] text-gray-500">Copie o view-source: da página</span>
+        <!-- Atalho view-source Automático -->
+        <div id="viewSourceContainer" class="hidden bg-gray-950/80 border border-brand-900/50 rounded-xl p-3 space-y-2">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span class="text-xs text-gray-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-arrow-right-to-bracket text-brand-400"></i> Atalho para extrair Capa/Sinopse:
+            </span>
+            <a id="viewSourceLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs bg-brand-950 hover:bg-brand-900 text-brand-300 border border-brand-700/50 px-3 py-1 rounded-lg transition inline-flex items-center gap-1.5 w-fit">
+              <i class="fa-solid fa-external-link text-[10px]"></i> Abrir <code>view-source</code> da página
+            </a>
           </div>
-          <div class="flex gap-2">
-            <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o código HTML ou view-source: para extrair capa, sinopse e tags..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
-            <button type="button" onclick="parseHtmlSource()" class="px-3 py-1.5 bg-gray-800 hover:bg-brand-600 text-gray-200 hover:text-white rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Extrair
-            </button>
+
+          <div class="pt-2 border-t border-gray-800/60">
+            <label class="block text-[11px] text-gray-400 mb-1">Cole o código da aba aberta acima (Opcional):</label>
+            <div class="flex gap-2">
+              <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o HTML para preencher Capa, Sinopse e Tags automaticamente..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
+              <button type="button" onclick="parseHtmlSource()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Extrair Dados
+              </button>
+            </div>
           </div>
         </div>
 
@@ -163,19 +169,25 @@
       localStorage.setItem('mangaVaultData', JSON.stringify(library));
     }
 
-    function autoFillFromUrl() {
+    function handleUrlInput() {
       const urlInput = document.getElementById('mangaUrl').value.trim();
-      if (!urlInput) return;
+      const container = document.getElementById('viewSourceContainer');
+      const viewSourceLink = document.getElementById('viewSourceLink');
+
+      if (!urlInput) {
+        container.classList.add('hidden');
+        return;
+      }
 
       try {
         const parsedUrl = new URL(urlInput);
         const domain = parsedUrl.hostname.replace('www.', '');
         
+        // Preenche site automático
         const sourceInput = document.getElementById('mangaSource');
-        if (!sourceInput.value) {
-          sourceInput.value = domain;
-        }
+        if (!sourceInput.value) sourceInput.value = domain;
 
+        // Tenta título automático limpo
         const titleInput = document.getElementById('mangaTitle');
         if (!titleInput.value) {
           const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
@@ -188,13 +200,21 @@
             titleInput.value = cleanTitle.trim();
           }
         }
-      } catch (e) {}
+
+        // Exibe o link view-source formatado
+        const viewSourceUrl = `view-source:${urlInput}`;
+        viewSourceLink.href = viewSourceUrl;
+        container.classList.remove('hidden');
+
+      } catch (e) {
+        container.classList.add('hidden');
+      }
     }
 
     function parseHtmlSource() {
       const rawHtml = document.getElementById('htmlSourceCode').value.trim();
       if (!rawHtml) {
-        alert('Por favor, cole o código HTML no campo antes de clicar em Extrair.');
+        alert('Cole o código HTML da página no campo antes de clicar em Extrair Dados.');
         return;
       }
 
@@ -293,6 +313,8 @@
       document.getElementById('mangaSynopsis').value = item.synopsis || '';
       document.getElementById('mangaTags').value = item.tags ? item.tags.join(', ') : '';
       document.getElementById('htmlSourceCode').value = '';
+      
+      handleUrlInput();
 
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Editar Mangá';
       document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Salvar Alterações';
@@ -314,6 +336,7 @@
       document.getElementById('mangaAuthor').value = 'Login Necessário';
       document.getElementById('mangaStatus').value = 'Lido';
       document.getElementById('htmlSourceCode').value = '';
+      document.getElementById('viewSourceContainer').classList.add('hidden');
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot';
       document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-bookmark"></i> Salvar na Biblioteca';
       document.getElementById('cancelBtn').classList.add('hidden');
