@@ -42,7 +42,7 @@
       </div>
     </header>
 
-    <!-- Navigation Tabs (Preparado para Futuras Expansões) -->
+    <!-- Navigation Tabs -->
     <div class="flex border-b border-gray-800 mb-6 gap-2 text-sm font-medium">
       <button class="py-2 px-4 border-b-2 border-brand-500 text-brand-400 flex items-center gap-2">
         <i class="fa-solid fa-book"></i> Mangás & One-Shots
@@ -103,6 +103,11 @@
           <div>
             <label class="block text-xs text-gray-400 mb-1">Autor / Artista</label>
             <input type="text" id="mangaAuthor" placeholder="Login Necessário" value="Login Necessário" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Link do Perfil do Autor (Opcional)</label>
+            <input type="url" id="mangaAuthorUrl" placeholder="https://site.com/tags/nome-autor/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
@@ -233,6 +238,18 @@
       alert('Texto view-source copiado! Cole na barra do navegador.');
     }
 
+    function toggleCardExpand(index) {
+      const details = document.getElementById(`details-${index}`);
+      const icon = document.getElementById(`expand-icon-${index}`);
+      if (details) {
+        details.classList.toggle('hidden');
+        if (icon) {
+          icon.classList.toggle('fa-chevron-down');
+          icon.classList.toggle('fa-chevron-up');
+        }
+      }
+    }
+
     function parseHtmlSource() {
       const rawHtml = document.getElementById('htmlSourceCode').value.trim();
       if (!rawHtml) {
@@ -244,10 +261,70 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(rawHtml, 'text/html');
 
-        // 1. Extrair Título
+        // 1. EXTRAÇÃO VIA JSON-LD
+        const jsonLdScripts = doc.querySelectorAll('script[type="application/ld+json"]');
+        let extractedKeywords = [];
+        let jsonCover = '';
+        let jsonTitle = '';
+
+        jsonLdScripts.forEach(script => {
+          try {
+            const data = JSON.parse(script.textContent);
+            const graph = data['@graph'] || [data];
+
+            graph.forEach(item => {
+              if (item.keywords && Array.isArray(item.keywords)) {
+                extractedKeywords = extractedKeywords.concat(item.keywords);
+              } else if (typeof item.keywords === 'string') {
+                extractedKeywords = extractedKeywords.concat(item.keywords.split(',').map(k => k.trim()));
+              }
+
+              if (item.thumbnailUrl) jsonCover = item.thumbnailUrl;
+              if (item.headline) jsonTitle = item.headline;
+            });
+          } catch (e) {}
+        });
+
+        if (extractedKeywords.length > 0) {
+          const currentTags = document.getElementById('mangaTags').value;
+          const uniqueTags = Array.from(new Set(extractedKeywords));
+          document.getElementById('mangaTags').value = currentTags ? `${currentTags}, ${uniqueTags.join(', ')}` : uniqueTags.join(', ');
+        }
+
+        // 2. EXTRAÇÃO DE AUTOR E LINK DO AUTOR POR ESTRUTURA DE LINKS
+        let extractedAuthor = '';
+        let extractedAuthorUrl = '';
+        
+        const authorLinkMatch = rawHtml.match(/href=["']((?:\https?:\/\/[^\/]+)?\/(?:tags|artist|author|artista|autor)\/([^\/"']+)\/?)["']/i);
+        if (authorLinkMatch) {
+          extractedAuthorUrl = authorLinkMatch[1];
+          if (!extractedAuthorUrl.startsWith('http')) {
+            const currentUrl = document.getElementById('mangaUrl').value;
+            if (currentUrl) {
+              const urlObj = new URL(currentUrl);
+              extractedAuthorUrl = `${urlObj.origin}${extractedAuthorUrl}`;
+            }
+          }
+          let authorSlug = authorLinkMatch[2].replace(/-/g, ' ');
+          extractedAuthor = authorSlug.replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Fallback de Autor por texto
+        if (!extractedAuthor) {
+          const fullText = doc.body.textContent || rawHtml;
+          const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
+          if (authorMatch && authorMatch[1]) {
+            extractedAuthor = authorMatch[1].trim();
+          }
+        }
+
+        if (extractedAuthor) document.getElementById('mangaAuthor').value = extractedAuthor;
+        if (extractedAuthorUrl) document.getElementById('mangaAuthorUrl').value = extractedAuthorUrl;
+
+        // 3. Extrair Título
         const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
         const pageTitle = doc.querySelector('title')?.textContent;
-        const extractedTitle = ogTitle || pageTitle;
+        const extractedTitle = jsonTitle || ogTitle || pageTitle;
         if (extractedTitle) {
           document.getElementById('mangaTitle').value = extractedTitle
             .replace(/ - Ler Online.*/i, '')
@@ -255,21 +332,14 @@
             .trim();
         }
 
-        // 2. Tentar Extrair Autor (Busca por "Artista:" ou "Autor:")
-        const fullText = doc.body.textContent || rawHtml;
-        const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
-        if (authorMatch && authorMatch[1]) {
-          document.getElementById('mangaAuthor').value = authorMatch[1].trim();
-        }
-
-        // 3. Extrair Capa
+        // 4. Extrair Capa
         const ogImage = doc.querySelector('meta[property="og:image"]')?.content;
         const mainImg = doc.querySelector('article img, .entry-content img, .cover img')?.src;
-        if (ogImage || mainImg) {
-          document.getElementById('mangaCover').value = ogImage || mainImg;
+        if (jsonCover || ogImage || mainImg) {
+          document.getElementById('mangaCover').value = jsonCover || ogImage || mainImg;
         }
 
-        // 4. Filtrar Sinopse (Filtra textos genéricos de chamadas)
+        // 5. Filtrar Sinopse
         const rawDesc = doc.querySelector('meta[property="og:description"]')?.content || 
                         doc.querySelector('meta[name="description"]')?.content || '';
         
@@ -278,14 +348,7 @@
           document.getElementById('mangaSynopsis').value = rawDesc.trim();
         }
 
-        // 5. Extrair Meta Keywords como Tags
-        const keywords = doc.querySelector('meta[name="keywords"]')?.content;
-        if (keywords) {
-          const currentTags = document.getElementById('mangaTags').value;
-          document.getElementById('mangaTags').value = currentTags ? `${currentTags}, ${keywords}` : keywords;
-        }
-
-        alert('✨ Dados do HTML processados!');
+        alert('✨ Dados do HTML e Link do Autor extraídos!');
       } catch (err) {
         alert('Não foi possível ler a estrutura deste HTML.');
       }
@@ -297,6 +360,7 @@
       const url = document.getElementById('mangaUrl').value.trim();
       const title = document.getElementById('mangaTitle').value.trim();
       const author = document.getElementById('mangaAuthor').value.trim() || 'Login Necessário';
+      const authorUrl = document.getElementById('mangaAuthorUrl').value.trim();
       const source = document.getElementById('mangaSource').value.trim();
       const status = document.getElementById('mangaStatus').value;
       const cover = document.getElementById('mangaCover').value.trim();
@@ -319,7 +383,7 @@
         }
       }
 
-      const mangaItem = { url, title, author, source, status, cover, synopsis, tags, updatedAt: new Date().toISOString() };
+      const mangaItem = { url, title, author, authorUrl, source, status, cover, synopsis, tags, updatedAt: new Date().toISOString() };
 
       if (editIndex === -1) {
         library.unshift(mangaItem);
@@ -338,6 +402,7 @@
       document.getElementById('mangaUrl').value = item.url;
       document.getElementById('mangaTitle').value = item.title;
       document.getElementById('mangaAuthor').value = item.author || 'Login Necessário';
+      document.getElementById('mangaAuthorUrl').value = item.authorUrl || '';
       document.getElementById('mangaSource').value = item.source || '';
       document.getElementById('mangaStatus').value = item.status;
       document.getElementById('mangaCover').value = item.cover || '';
@@ -365,6 +430,7 @@
       document.getElementById('mangaForm').reset();
       document.getElementById('editIndex').value = -1;
       document.getElementById('mangaAuthor').value = 'Login Necessário';
+      document.getElementById('mangaAuthorUrl').value = '';
       document.getElementById('mangaStatus').value = 'Lido';
       document.getElementById('htmlSourceCode').value = '';
       document.getElementById('viewSourceContainer').classList.add('hidden');
@@ -422,7 +488,7 @@
         card.className = 'bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition';
         card.innerHTML = `
           <div>
-            <div class="relative aspect-[3/4] overflow-hidden bg-gray-950">
+            <div class="relative aspect-[3/4] overflow-hidden bg-gray-950 cursor-pointer" onclick="toggleCardExpand(${realIndex})">
               <img src="${coverUrl}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa'" />
               <span class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-950/80 text-brand-300 backdrop-blur-sm border border-gray-700">
                 ${item.status}
@@ -430,10 +496,23 @@
             </div>
             
             <div class="p-3">
-              <h3 class="font-semibold text-sm line-clamp-1 text-gray-100" title="${item.title}">${item.title}</h3>
+              <div class="flex justify-between items-start gap-1 cursor-pointer" onclick="toggleCardExpand(${realIndex})">
+                <h3 class="font-semibold text-sm line-clamp-1 text-gray-100 flex-1" title="${item.title}">${item.title}</h3>
+                <i id="expand-icon-${realIndex}" class="fa-solid fa-chevron-down text-xs text-gray-500 mt-1"></i>
+              </div>
+              
               <p class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-user text-[10px]"></i> ${item.author || 'Login Necessário'}</p>
               
-              ${item.synopsis ? `<p class="text-[11px] text-gray-500 line-clamp-2 mt-1.5">${item.synopsis}</p>` : ''}
+              <!-- Detalhes Expansíveis -->
+              <div id="details-${realIndex}" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-2">
+                ${item.synopsis ? `<p class="text-[11px] text-gray-300 bg-gray-950/60 p-2 rounded border border-gray-800/80">${item.synopsis}</p>` : ''}
+                
+                ${item.authorUrl ? `
+                  <a href="${item.authorUrl}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-brand-400 hover:text-brand-300 flex items-center gap-1 bg-brand-950/40 border border-brand-900/60 px-2 py-1 rounded w-fit">
+                    <i class="fa-solid fa-user-gear text-[10px]"></i> Ver Página do Autor
+                  </a>
+                ` : ''}
+              </div>
 
               <div class="flex flex-wrap gap-1 mt-2">
                 ${item.tags ? item.tags.map(t => `
