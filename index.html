@@ -50,15 +50,29 @@
         
         <div>
           <label class="block text-xs text-gray-400 mb-1">Link / URL do Mangá *</label>
+          <input type="url" id="mangaUrl" required onchange="autoFillFromUrl()" placeholder="https://site.com/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+        </div>
+
+        <!-- Extração via Código-Fonte (User-Assisted Scraping) -->
+        <div class="bg-gray-950/60 border border-gray-800/80 rounded-xl p-3">
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-xs font-medium text-brand-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-code"></i> Extração Automática via HTML (Opcional)
+            </label>
+            <span class="text-[10px] text-gray-500">Copie o view-source: da página</span>
+          </div>
           <div class="flex gap-2">
-            <input type="url" id="mangaUrl" required onchange="autoFillFromUrl()" placeholder="https://site.com/hentai/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+            <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o código HTML ou view-source: para extrair capa, sinopse e tags..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
+            <button type="button" onclick="parseHtmlSource()" class="px-3 py-1.5 bg-gray-800 hover:bg-brand-600 text-gray-200 hover:text-white rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Extrair
+            </button>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs text-gray-400 mb-1">Título do Mangá *</label>
-            <input type="text" id="mangaTitle" required placeholder="Ex: Oideyo Kei Land" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+            <input type="text" id="mangaTitle" required placeholder="Ex: Título da Obra" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
@@ -74,9 +88,9 @@
           <div>
             <label class="block text-xs text-gray-400 mb-1">Status de Leitura</label>
             <select id="mangaStatus" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200">
+              <option value="Lido" selected>Lido</option>
               <option value="Quero Ler">Quero Ler</option>
               <option value="Lendo">Lendo</option>
-              <option value="Concluído">Concluído</option>
               <option value="Pausado">Pausado</option>
             </select>
           </div>
@@ -115,9 +129,9 @@
         </div>
         <select id="statusFilter" onchange="renderLibrary()" class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 text-gray-200">
           <option value="Todos">Todos os Status</option>
+          <option value="Lido">Lido</option>
           <option value="Quero Ler">Quero Ler</option>
           <option value="Lendo">Lendo</option>
-          <option value="Concluído">Concluído</option>
           <option value="Pausado">Pausado</option>
         </select>
       </div>
@@ -131,7 +145,7 @@
 
     <!-- Library Grid -->
     <main id="libraryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      <!-- Cards serão inseridos dinamicamente aqui -->
+      <!-- Cards dinâmicos -->
     </main>
 
     <!-- Empty State -->
@@ -157,13 +171,11 @@
         const parsedUrl = new URL(urlInput);
         const domain = parsedUrl.hostname.replace('www.', '');
         
-        // Autopreencher Nome do Site se estiver vazio
         const sourceInput = document.getElementById('mangaSource');
         if (!sourceInput.value) {
           sourceInput.value = domain;
         }
 
-        // Tentar sugerir um título limpo a partir da URL se estiver vazio
         const titleInput = document.getElementById('mangaTitle');
         if (!titleInput.value) {
           const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
@@ -176,8 +188,55 @@
             titleInput.value = cleanTitle.trim();
           }
         }
-      } catch (e) {
-        // URL inválida ignorada
+      } catch (e) {}
+    }
+
+    function parseHtmlSource() {
+      const rawHtml = document.getElementById('htmlSourceCode').value.trim();
+      if (!rawHtml) {
+        alert('Por favor, cole o código HTML no campo antes de clicar em Extrair.');
+        return;
+      }
+
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(rawHtml, 'text/html');
+
+        // Extrair Título
+        const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
+        const pageTitle = doc.querySelector('title')?.textContent;
+        const extractedTitle = ogTitle || pageTitle;
+        if (extractedTitle) {
+          document.getElementById('mangaTitle').value = extractedTitle
+            .replace(/ - Ler Online.*/i, '')
+            .replace(/ \| .*/, '')
+            .trim();
+        }
+
+        // Extrair Capa
+        const ogImage = doc.querySelector('meta[property="og:image"]')?.content;
+        const mainImg = doc.querySelector('article img, .entry-content img, .cover img')?.src;
+        if (ogImage || mainImg) {
+          document.getElementById('mangaCover').value = ogImage || mainImg;
+        }
+
+        // Extrair Sinopse / Descrição
+        const ogDesc = doc.querySelector('meta[property="og:description"]')?.content;
+        const metaDesc = doc.querySelector('meta[name="description"]')?.content;
+        if (ogDesc || metaDesc) {
+          document.getElementById('mangaSynopsis').value = (ogDesc || metaDesc).trim();
+        }
+
+        // Extrair Meta Keywords como Tags
+        const keywords = doc.querySelector('meta[name="keywords"]')?.content;
+        if (keywords) {
+          const currentTags = document.getElementById('mangaTags').value;
+          document.getElementById('mangaTags').value = currentTags ? `${currentTags}, ${keywords}` : keywords;
+        }
+
+        alert('✨ Dados extraídos com sucesso do HTML!');
+      } catch (err) {
+        alert('Não foi possível ler a estrutura deste HTML.');
       }
     }
 
@@ -194,13 +253,11 @@
       const tagsInput = document.getElementById('mangaTags').value.trim();
       const editIndex = parseInt(document.getElementById('editIndex').value);
 
-      // Gerar Tags
       let tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
       if (source && !tags.includes(source)) {
-        tags.unshift(source); // Adiciona o nome do site como Tag automática
+        tags.unshift(source);
       }
 
-      // TRAVA ANTI-DUPLICADOS (se não estiver editando)
       if (editIndex === -1) {
         const isDuplicateUrl = library.some(item => item.url.toLowerCase() === url.toLowerCase());
         const isDuplicateTitle = library.some(item => item.title.toLowerCase() === title.toLowerCase());
@@ -235,6 +292,7 @@
       document.getElementById('mangaCover').value = item.cover || '';
       document.getElementById('mangaSynopsis').value = item.synopsis || '';
       document.getElementById('mangaTags').value = item.tags ? item.tags.join(', ') : '';
+      document.getElementById('htmlSourceCode').value = '';
 
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Editar Mangá';
       document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Salvar Alterações';
@@ -254,6 +312,8 @@
       document.getElementById('mangaForm').reset();
       document.getElementById('editIndex').value = -1;
       document.getElementById('mangaAuthor').value = 'Login Necessário';
+      document.getElementById('mangaStatus').value = 'Lido';
+      document.getElementById('htmlSourceCode').value = '';
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot';
       document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-bookmark"></i> Salvar na Biblioteca';
       document.getElementById('cancelBtn').classList.add('hidden');
@@ -300,7 +360,7 @@
       }
       emptyState.classList.add('hidden');
 
-      filtered.forEach((item, index) => {
+      filtered.forEach((item) => {
         const realIndex = library.indexOf(item);
         const coverUrl = item.cover || 'https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa';
         
@@ -316,7 +376,7 @@
             </div>
             
             <div class="p-3">
-              <h3 class="font-semibold text-sm line-clamp-1 text-gray-100 title="${item.title}">${item.title}</h3>
+              <h3 class="font-semibold text-sm line-clamp-1 text-gray-100" title="${item.title}">${item.title}</h3>
               <p class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-user text-[10px]"></i> ${item.author || 'Login Necessário'}</p>
               
               ${item.synopsis ? `<p class="text-[11px] text-gray-500 line-clamp-2 mt-1.5">${item.synopsis}</p>` : ''}
@@ -380,7 +440,6 @@
       reader.readAsText(file);
     }
 
-    // Render Inicial
     renderLibrary();
   </script>
 </body>
