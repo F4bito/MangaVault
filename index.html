@@ -1,391 +1,354 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MangaVault</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MangaVault - Seu Organizador de Mangás</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <style>
-    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
-    .card-zoom:hover .card-img { transform: scale(1.05); }
-    .card-img { transition: transform 0.3s ease; }
-  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="min-h-screen pb-12">
-
-  <!-- Header -->
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+<body class="bg-gray-950 text-gray-100 min-h-screen font-sans pb-12">
+  <div class="max-w-6xl mx-auto px-4 py-6">
+    
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-4">
       <div class="flex items-center gap-3">
-        <i class="fa-solid me-2 fa-book-open text-indigo-500 text-2xl"></i>
-        <h1 class="text-xl font-bold tracking-wide text-white">Manga<span class="text-indigo-500">Vault</span></h1>
+        <i class="fa-solid font-bold text-3xl text-brand-500 fa-book-open"></i>
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-brand-500 to-purple-400 bg-clip-text text-transparent">MangaVault</h1>
       </div>
-      <div class="flex items-center gap-2 w-full md:w-auto">
-        <button onclick="openModal()" class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg transition flex items-center justify-center gap-2">
-          <i class="fa-solid fa-plus"></i> Adicionar Obras
+      <div class="flex items-center gap-2">
+        <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition border border-gray-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-download"></i> Exportar
         </button>
-        <button onclick="exportData()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700" title="Exportar Backup">
-          <i class="fa-solid fa-download"></i>
-        </button>
-        <label class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700 cursor-pointer" title="Importar Backup">
-          <i class="fa-solid fa-upload"></i>
-          <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+        <label class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition border border-gray-700 cursor-pointer flex items-center gap-1.5">
+          <i class="fa-solid fa-upload"></i> Importar
+          <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden" />
         </label>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="max-w-7xl mx-auto px-4 mt-6">
-    <!-- Busca e Filtros -->
-    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 mb-6 flex flex-col md:flex-row gap-4">
-      <div class="relative flex-1">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3.5 text-slate-400"></i>
-        <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Pesquisar por título, autor, site ou tag..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-indigo-500">
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <select id="statusFilter" onchange="applyFilters()" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-indigo-500">
-          <option value="">Todos os Status</option>
-          <option value="Lendo">Lendo</option>
-          <option value="Quero Ler">Quero Ler</option>
-          <option value="Concluído">Concluído</option>
-          <option value="Pausado">Pausado</option>
-        </select>
-        <select id="typeFilter" onchange="applyFilters()" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-indigo-500">
-          <option value="">Todos os Formatos</option>
-          <option value="Série">Série</option>
-          <option value="One-shot">One-shot</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Container do Grid -->
-    <div id="mangaGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
-  </main>
-
-  <!-- Modal Adicionar / Editar -->
-  <div id="mangaModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-4 z-50 backdrop-blur-sm overflow-y-auto">
-    <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-6 relative">
-      <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-      <h2 id="modalTitle" class="text-lg font-bold text-white mb-4">Adicionar Obra</h2>
+    <!-- Form Section -->
+    <section class="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 mb-8 shadow-xl">
+      <h2 id="formTitle" class="text-lg font-semibold mb-4 text-brand-500 flex items-center gap-2">
+        <i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot
+      </h2>
       
-      <!-- Extrator Automático -->
-      <div class="mb-4 p-3 bg-slate-950 rounded-lg border border-slate-800">
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Importar dados automaticamente via Link:</label>
-        <div class="flex gap-2">
-          <input type="url" id="autoUrl" placeholder="Cole a URL da página aqui..." class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500">
-          <button type="button" onclick="fetchMetadata()" id="btnFetch" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-1.5 rounded transition flex items-center gap-1">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Puxar
-          </button>
+      <form id="mangaForm" onsubmit="saveManga(event)" class="space-y-4">
+        <input type="hidden" id="editIndex" value="-1" />
+        
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Link / URL do Mangá *</label>
+          <div class="flex gap-2">
+            <input type="url" id="mangaUrl" required onchange="autoFillFromUrl()" placeholder="https://site.com/hentai/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+          </div>
         </div>
-        <p id="fetchError" class="text-red-400 text-xs mt-1 hidden"></p>
-      </div>
 
-      <form id="mangaForm" onsubmit="saveManga(event)" class="space-y-3">
-        <input type="hidden" id="mangaId">
-        <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Título *</label>
-          <input type="text" id="title" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Autor / Círculo</label>
-            <input type="text" id="author" placeholder="Ex: Desconhecido" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            <label class="block text-xs text-gray-400 mb-1">Título do Mangá *</label>
+            <input type="text" id="mangaTitle" required placeholder="Ex: Oideyo Kei Land" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
+
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Nome do Site (Fonte)</label>
-            <input type="text" id="siteName" placeholder="Ex: Bakai, MangaDex" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            <label class="block text-xs text-gray-400 mb-1">Autor</label>
+            <input type="text" id="mangaAuthor" placeholder="Login Necessário" value="Login Necessário" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">URL de Leitura *</label>
-          <input type="url" id="link" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">URL da Imagem da Capa</label>
-          <input type="url" id="cover" placeholder="https://..." class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Status</label>
-            <select id="status" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            <label class="block text-xs text-gray-400 mb-1">Nome do Site / Fonte</label>
+            <input type="text" id="mangaSource" placeholder="Ex: bakai.org" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Status de Leitura</label>
+            <select id="mangaStatus" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200">
               <option value="Quero Ler">Quero Ler</option>
               <option value="Lendo">Lendo</option>
               <option value="Concluído">Concluído</option>
               <option value="Pausado">Pausado</option>
             </select>
           </div>
+
           <div>
-            <label class="block text-xs font-medium text-slate-400 mb-1">Formato</label>
-            <select id="type" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-              <option value="Série">Série</option>
-              <option value="One-shot">One-shot</option>
-            </select>
+            <label class="block text-xs text-gray-400 mb-1">URL da Imagem de Capa (Opcional)</label>
+            <input type="url" id="mangaCover" placeholder="https://..." class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Tags / Gêneros (separados por vírgula)</label>
+            <input type="text" id="mangaTags" placeholder="Romance, Gyaru, One-Shot" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
         </div>
+
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Tags (separadas por vírgula)</label>
-          <input type="text" id="tags" placeholder="Romance, Gyaru, Animação..." class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+          <label class="block text-xs text-gray-400 mb-1">Sinopse / Anotações</label>
+          <textarea id="mangaSynopsis" rows="2" placeholder="Resumo ou observações pessoais sobre a obra..." class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200"></textarea>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Sinopse</label>
-          <textarea id="synopsis" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"></textarea>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 font-medium">Salvar Obra</button>
+
+        <div class="flex gap-2 justify-end">
+          <button type="button" id="cancelBtn" onclick="resetForm()" class="hidden px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm transition">Cancelar</button>
+          <button type="submit" id="saveBtn" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg text-sm transition flex items-center gap-2">
+            <i class="fa-solid fa-bookmark"></i> Salvar na Biblioteca
+          </button>
         </div>
       </form>
+    </section>
+
+    <!-- Search & Filters -->
+    <section class="mb-6 space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-500 text-sm"></i>
+          <input type="text" id="searchInput" oninput="renderLibrary()" placeholder="Buscar por título, autor, site, sinopse ou tag..." class="w-full pl-9 pr-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+        </div>
+        <select id="statusFilter" onchange="renderLibrary()" class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 text-gray-200">
+          <option value="Todos">Todos os Status</option>
+          <option value="Quero Ler">Quero Ler</option>
+          <option value="Lendo">Lendo</option>
+          <option value="Concluído">Concluído</option>
+          <option value="Pausado">Pausado</option>
+        </select>
+      </div>
+      
+      <!-- Tag Filter Pills -->
+      <div id="activeTagFilter" class="hidden items-center gap-2 text-xs bg-brand-900/30 border border-brand-800 text-brand-300 px-3 py-1.5 rounded-lg w-fit">
+        <span>Filtrando por tag: <strong id="selectedTagName"></strong></span>
+        <button onclick="clearTagFilter()" class="hover:text-white ml-2"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </section>
+
+    <!-- Library Grid -->
+    <main id="libraryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <!-- Cards serão inseridos dinamicamente aqui -->
+    </main>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 bg-gray-900/50 border border-gray-800/50 rounded-2xl">
+      <i class="fa-solid fa-folder-open text-4xl text-gray-600 mb-3"></i>
+      <p class="text-gray-400 text-sm">Nenhum mangá encontrado na sua biblioteca.</p>
     </div>
   </div>
 
   <script>
-    let mangas = JSON.parse(localStorage.getItem('mangavault_data') || '[]');
+    let library = JSON.parse(localStorage.getItem('mangaVaultData')) || [];
+    let selectedTag = '';
 
     function saveToStorage() {
-      localStorage.setItem('mangavault_data', JSON.stringify(mangas));
-      applyFilters();
+      localStorage.setItem('mangaVaultData', JSON.stringify(library));
     }
 
-    function renderGrid(data) {
-      const grid = document.getElementById('mangaGrid');
-      grid.innerHTML = '';
+    function autoFillFromUrl() {
+      const urlInput = document.getElementById('mangaUrl').value.trim();
+      if (!urlInput) return;
 
-      if(data.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">Nenhum mangá encontrado.</div>`;
-        return;
+      try {
+        const parsedUrl = new URL(urlInput);
+        const domain = parsedUrl.hostname.replace('www.', '');
+        
+        // Autopreencher Nome do Site se estiver vazio
+        const sourceInput = document.getElementById('mangaSource');
+        if (!sourceInput.value) {
+          sourceInput.value = domain;
+        }
+
+        // Tentar sugerir um título limpo a partir da URL se estiver vazio
+        const titleInput = document.getElementById('mangaTitle');
+        if (!titleInput.value) {
+          const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+          if (pathSegments.length > 0) {
+            let lastSegment = pathSegments[pathSegments.length - 1];
+            let cleanTitle = lastSegment
+              .replace(/-/g, ' ')
+              .replace(/r\d+/i, '')
+              .replace(/\b\w/g, l => l.toUpperCase());
+            titleInput.value = cleanTitle.trim();
+          }
+        }
+      } catch (e) {
+        // URL inválida ignorada
+      }
+    }
+
+    function saveManga(event) {
+      event.preventDefault();
+      
+      const url = document.getElementById('mangaUrl').value.trim();
+      const title = document.getElementById('mangaTitle').value.trim();
+      const author = document.getElementById('mangaAuthor').value.trim() || 'Login Necessário';
+      const source = document.getElementById('mangaSource').value.trim();
+      const status = document.getElementById('mangaStatus').value;
+      const cover = document.getElementById('mangaCover').value.trim();
+      const synopsis = document.getElementById('mangaSynopsis').value.trim();
+      const tagsInput = document.getElementById('mangaTags').value.trim();
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+
+      // Gerar Tags
+      let tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
+      if (source && !tags.includes(source)) {
+        tags.unshift(source); // Adiciona o nome do site como Tag automática
       }
 
-      data.forEach(item => {
-        const defaultCover = 'https://via.placeholder.com/300x420/1e293b/94a3b8?text=Sem+Capa';
-        const coverSrc = item.cover || defaultCover;
-        const tagsArr = item.tags ? item.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+      // TRAVA ANTI-DUPLICADOS (se não estiver editando)
+      if (editIndex === -1) {
+        const isDuplicateUrl = library.some(item => item.url.toLowerCase() === url.toLowerCase());
+        const isDuplicateTitle = library.some(item => item.title.toLowerCase() === title.toLowerCase());
+
+        if (isDuplicateUrl || isDuplicateTitle) {
+          alert('⚠️ ATENÇÃO: Este mangá ou link já está cadastrado na sua biblioteca!');
+          return;
+        }
+      }
+
+      const mangaItem = { url, title, author, source, status, cover, synopsis, tags, updatedAt: new Date().toISOString() };
+
+      if (editIndex === -1) {
+        library.unshift(mangaItem);
+      } else {
+        library[editIndex] = mangaItem;
+      }
+
+      saveToStorage();
+      resetForm();
+      renderLibrary();
+    }
+
+    function editManga(index) {
+      const item = library[index];
+      document.getElementById('editIndex').value = index;
+      document.getElementById('mangaUrl').value = item.url;
+      document.getElementById('mangaTitle').value = item.title;
+      document.getElementById('mangaAuthor').value = item.author || 'Login Necessário';
+      document.getElementById('mangaSource').value = item.source || '';
+      document.getElementById('mangaStatus').value = item.status;
+      document.getElementById('mangaCover').value = item.cover || '';
+      document.getElementById('mangaSynopsis').value = item.synopsis || '';
+      document.getElementById('mangaTags').value = item.tags ? item.tags.join(', ') : '';
+
+      document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Editar Mangá';
+      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Salvar Alterações';
+      document.getElementById('cancelBtn').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteManga(index) {
+      if (confirm('Tem certeza que deseja remover este mangá?')) {
+        library.splice(index, 1);
+        saveToStorage();
+        renderLibrary();
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('mangaForm').reset();
+      document.getElementById('editIndex').value = -1;
+      document.getElementById('mangaAuthor').value = 'Login Necessário';
+      document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot';
+      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-bookmark"></i> Salvar na Biblioteca';
+      document.getElementById('cancelBtn').classList.add('hidden');
+    }
+
+    function filterByTag(tag) {
+      selectedTag = tag;
+      document.getElementById('selectedTagName').innerText = tag;
+      document.getElementById('activeTagFilter').classList.remove('hidden');
+      document.getElementById('activeTagFilter').classList.add('flex');
+      renderLibrary();
+    }
+
+    function clearTagFilter() {
+      selectedTag = '';
+      document.getElementById('activeTagFilter').classList.add('hidden');
+      document.getElementById('activeTagFilter').classList.remove('flex');
+      renderLibrary();
+    }
+
+    function renderLibrary() {
+      const grid = document.getElementById('libraryGrid');
+      const emptyState = document.getElementById('emptyState');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      grid.innerHTML = '';
+
+      const filtered = library.filter(item => {
+        const matchesSearch = item.title.toLowerCase().includes(search) ||
+                              (item.author && item.author.toLowerCase().includes(search)) ||
+                              (item.synopsis && item.synopsis.toLowerCase().includes(search)) ||
+                              (item.tags && item.tags.some(t => t.toLowerCase().includes(search)));
+        
+        const matchesStatus = statusFilter === 'Todos' || item.status === statusFilter;
+        const matchesTag = !selectedTag || (item.tags && item.tags.includes(selectedTag));
+
+        return matchesSearch && matchesStatus && matchesTag;
+      });
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      filtered.forEach((item, index) => {
+        const realIndex = library.indexOf(item);
+        const coverUrl = item.cover || 'https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa';
         
         const card = document.createElement('div');
-        card.className = "bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between card-zoom relative group";
-        
+        card.className = 'bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition';
         card.innerHTML = `
           <div>
-            <div class="relative aspect-[3/4] overflow-hidden bg-slate-950">
-              <img src="${coverSrc}" alt="${item.title}" class="w-full h-full object-cover card-img" onerror="this.src='${defaultCover}'">
-              <div class="absolute top-2 left-2 flex flex-col gap-1">
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600/90 text-white backdrop-blur-sm">${item.status}</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 backdrop-blur-sm">${item.type}</span>
-              </div>
-              <div class="absolute top-2 right-2 flex gap-1 opacity-90">
-                <button onclick="editManga('${item.id}')" class="bg-slate-900/80 hover:bg-indigo-600 text-white p-1.5 rounded-full backdrop-blur-sm text-xs transition"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="deleteManga('${item.id}')" class="bg-slate-900/80 hover:bg-red-600 text-white p-1.5 rounded-full backdrop-blur-sm text-xs transition"><i class="fa-solid fa-trash"></i></button>
-              </div>
+            <div class="relative aspect-[3/4] overflow-hidden bg-gray-950">
+              <img src="${coverUrl}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa'" />
+              <span class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-950/80 text-brand-300 backdrop-blur-sm border border-gray-700">
+                ${item.status}
+              </span>
             </div>
+            
             <div class="p-3">
-              <h3 class="font-bold text-white text-sm line-clamp-1 mb-1" title="${item.title}">${item.title}</h3>
-              <div class="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                <span><i class="fa-solid fa-user text-slate-500 mr-1"></i>${item.author || 'Desconhecido'}</span>
-                <span class="text-indigo-400 font-medium">${item.siteName || 'Web'}</span>
-              </div>
-              ${item.synopsis ? `<p class="text-xs text-slate-400 line-clamp-2 mb-2">${item.synopsis}</p>` : ''}
-              <div class="flex flex-wrap gap-1 mb-2">
-                ${tagsArr.slice(0, 3).map(tag => `<span onclick="filterByTag('${tag}')" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded cursor-pointer">#${tag}</span>`).join('')}
-                ${tagsArr.length > 3 ? `<span class="text-[10px] text-slate-500">+${tagsArr.length - 3}</span>` : ''}
+              <h3 class="font-semibold text-sm line-clamp-1 text-gray-100 title="${item.title}">${item.title}</h3>
+              <p class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-user text-[10px]"></i> ${item.author || 'Login Necessário'}</p>
+              
+              ${item.synopsis ? `<p class="text-[11px] text-gray-500 line-clamp-2 mt-1.5">${item.synopsis}</p>` : ''}
+
+              <div class="flex flex-wrap gap-1 mt-2">
+                ${item.tags ? item.tags.map(t => `
+                  <button onclick="filterByTag('${t}')" class="text-[10px] bg-gray-800 hover:bg-brand-950 hover:text-brand-300 text-gray-400 px-2 py-0.5 rounded transition">
+                    #${t}
+                  </button>
+                `).join('') : ''}
               </div>
             </div>
           </div>
-          <div class="p-3 pt-0">
-            <a href="${item.link}" target="_blank" class="w-full bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white text-xs font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1.5">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Ler no Site
+
+          <div class="p-3 pt-0 flex gap-2 border-t border-gray-800/50 mt-2">
+            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded text-xs font-medium transition flex items-center justify-center gap-1">
+              <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Ler
             </a>
+            <button onclick="editManga(${realIndex})" class="px-2 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button onclick="deleteManga(${realIndex})" class="px-2 py-1.5 bg-gray-800 hover:bg-red-900/50 text-gray-400 hover:text-red-300 rounded text-xs transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           </div>
         `;
         grid.appendChild(card);
       });
     }
 
-    function applyFilters() {
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      const status = document.getElementById('statusFilter').value;
-      const type = document.getElementById('typeFilter').value;
-
-      const filtered = mangas.filter(item => {
-        const matchesSearch = item.title.toLowerCase().includes(search) || 
-                              (item.tags && item.tags.toLowerCase().includes(search)) ||
-                              (item.synopsis && item.synopsis.toLowerCase().includes(search)) ||
-                              (item.author && item.author.toLowerCase().includes(search)) ||
-                              (item.siteName && item.siteName.toLowerCase().includes(search));
-        const matchesStatus = !status || item.status === status;
-        const matchesType = !type || item.type === type;
-
-        return matchesSearch && matchesStatus && matchesType;
-      });
-
-      renderGrid(filtered);
-    }
-
-    function filterByTag(tag) {
-      document.getElementById('searchInput').value = tag;
-      applyFilters();
-    }
-
-    // Modal Controls
-    function openModal() {
-      document.getElementById('mangaId').value = '';
-      document.getElementById('mangaForm').reset();
-      document.getElementById('autoUrl').value = '';
-      document.getElementById('fetchError').classList.add('hidden');
-      document.getElementById('modalTitle').innerText = 'Adicionar Obra';
-      document.getElementById('mangaModal').classList.remove('hidden');
-      document.getElementById('mangaModal').classList.add('flex');
-    }
-
-    function closeModal() {
-      document.getElementById('mangaModal').classList.add('hidden');
-      document.getElementById('mangaModal').classList.remove('flex');
-    }
-
-    // Puxar metadados via Proxy CORS
-    async function fetchMetadata() {
-      const url = document.getElementById('autoUrl').value.trim();
-      const errEl = document.getElementById('fetchError');
-      const btn = document.getElementById('btnFetch');
-      errEl.classList.add('hidden');
-
-      if (!url) {
-        errEl.innerText = "Por favor, insira uma URL.";
-        errEl.classList.remove('hidden');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Buscando...`;
-
-      try {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxyUrl);
-        const data = await res.json();
-        
-        if (!data.contents) throw new Error("Não foi possível acessar a página.");
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(data.contents, 'text/html');
-
-        // Extração de Nome do Site
-        let site = "";
-        try {
-          const hostname = new URL(url).hostname.replace('www.', '');
-          site = hostname.split('.')[0];
-          site = site.charAt(0).toUpperCase() + site.slice(1);
-        } catch(e) {}
-
-        // Extração de Título
-        let title = doc.querySelector('meta[property="og:title"]')?.content || doc.title || "";
-        title = title.replace(/\s*[\-\|]\s*(Bakai|Mundo Hentai|Ler Online|Hentai).*$/i, '').trim();
-
-        // Extração de Capa
-        let cover = doc.querySelector('meta[property="og:image"]')?.content || 
-                    doc.querySelector('.post-thumbnail img, .entry-content img, article img')?.src || "";
-
-        // Extração de Sinopse
-        let synopsis = doc.querySelector('meta[property="og:description"]')?.content || 
-                       doc.querySelector('meta[name="description"]')?.content || "";
-
-        // Extração de Tags / Categorias
-        let tags = [];
-        doc.querySelectorAll('a[rel="tag"], .tags a, .genres a, .post-term').forEach(el => {
-          const text = el.innerText.trim();
-          if (text && !tags.includes(text)) tags.push(text);
-        });
-
-        // Preenchimento do formulário
-        if (title) document.getElementById('title').value = title;
-        document.getElementById('link').value = url;
-        if (cover) document.getElementById('cover').value = cover;
-        if (synopsis) document.getElementById('synopsis').value = synopsis;
-        if (site) document.getElementById('siteName').value = site;
-        if (tags.length > 0) document.getElementById('tags').value = tags.join(', ');
-
-      } catch (err) {
-        errEl.innerText = "Falha na extração automática. Preencha os campos manualmente.";
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Puxar`;
-      }
-    }
-
-    // Salvar com verificação de duplicatas
-    function saveManga(e) {
-      e.preventDefault();
-      
-      const id = document.getElementById('mangaId').value;
-      const title = document.getElementById('title').value.trim();
-      const link = document.getElementById('link').value.trim();
-      
-      // Validação de Duplicatas (apenas se for um novo registro)
-      if (!id) {
-        const isDuplicate = mangas.some(m => 
-          m.link.toLowerCase() === link.toLowerCase() || 
-          m.title.toLowerCase() === title.toLowerCase()
-        );
-
-        if (isDuplicate) {
-          alert("Atenção: Esta obra ou este link já constam na sua biblioteca!");
-          return;
-        }
-      }
-
-      const itemData = {
-        id: id || Date.now().toString(),
-        title: title,
-        author: document.getElementById('author').value.trim(),
-        siteName: document.getElementById('siteName').value.trim(),
-        link: link,
-        cover: document.getElementById('cover').value.trim(),
-        status: document.getElementById('status').value,
-        type: document.getElementById('type').value,
-        tags: document.getElementById('tags').value.trim(),
-        synopsis: document.getElementById('synopsis').value.trim()
-      };
-
-      if (id) {
-        const index = mangas.findIndex(m => m.id === id);
-        if (index !== -1) mangas[index] = itemData;
-      } else {
-        mangas.unshift(itemData);
-      }
-
-      saveToStorage();
-      closeModal();
-    }
-
-    function editManga(id) {
-      const item = mangas.find(m => m.id === id);
-      if (!item) return;
-
-      document.getElementById('mangaId').value = item.id;
-      document.getElementById('title').value = item.title;
-      document.getElementById('author').value = item.author || '';
-      document.getElementById('siteName').value = item.siteName || '';
-      document.getElementById('link').value = item.link;
-      document.getElementById('cover').value = item.cover || '';
-      document.getElementById('status').value = item.status;
-      document.getElementById('type').value = item.type;
-      document.getElementById('tags').value = item.tags || '';
-      document.getElementById('synopsis').value = item.synopsis || '';
-
-      document.getElementById('modalTitle').innerText = 'Editar Obra';
-      document.getElementById('mangaModal').classList.remove('hidden');
-      document.getElementById('mangaModal').classList.add('flex');
-    }
-
-    function deleteManga(id) {
-      if (confirm("Deseja realmente remover esta obra da sua biblioteca?")) {
-        mangas = mangas.filter(m => m.id !== id);
-        saveToStorage();
-      }
-    }
-
-    // Exportar & Importar Backup
     function exportData() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mangas, null, 2));
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(library, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
       downloadAnchor.setAttribute("download", `mangavault_backup_${new Date().toISOString().slice(0,10)}.json`);
@@ -403,21 +366,22 @@
         try {
           const imported = JSON.parse(e.target.result);
           if (Array.isArray(imported)) {
-            mangas = imported;
+            library = imported;
             saveToStorage();
-            alert("Biblioteca importada com sucesso!");
+            renderLibrary();
+            alert('Biblioteca importada com sucesso!');
           } else {
-            alert("Arquivo JSON inválido.");
+            alert('Formato de arquivo JSON inválido.');
           }
         } catch (err) {
-          alert("Erro ao ler o arquivo de backup.");
+          alert('Erro ao ler o arquivo de backup.');
         }
       };
       reader.readAsText(file);
     }
 
     // Render Inicial
-    applyFilters();
+    renderLibrary();
   </script>
 </body>
 </html>
