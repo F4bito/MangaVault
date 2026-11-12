@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MangaVault - Seu Organizador de Conteúdo</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/wanakana"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script>
     tailwind.config = {
@@ -131,7 +132,7 @@
               <div class="flex items-center gap-1 shrink-0">
                 <select id="sourceLangSelect" title="Idioma de origem" class="bg-gray-950 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300 focus:outline-none focus:border-brand-500">
                   <option value="auto">Auto</option>
-                  <option value="ja">Japonês</option>
+                  <option value="ja">Japonês / Romaji</option>
                   <option value="ko">Coreano</option>
                   <option value="zh-CN">Chinês</option>
                   <option value="en">Inglês</option>
@@ -397,7 +398,7 @@
             </button>
           </div>
 
-          <!-- Confirmação Inline de Exclusão (Sem Pop-up Nativo) -->
+          <!-- Confirmação Inline de Exclusão -->
           <div id="deleteConfirmBar" class="hidden mt-3 p-3 bg-red-950/50 border border-red-800/70 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
             <span class="text-xs text-red-200 flex items-center gap-2">
               <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
@@ -541,14 +542,31 @@
       }, 2000);
     }
 
-    // Tradução com suporte a idioma forçado + Fallback de API
+    // Converte Romaji para Hiragana quando necessário (para a API traduzir corretamente)
+    function prepareJapaneseText(text) {
+      if (typeof wanakana === 'undefined') return text;
+      // Se já tem Hiragana, Katakana ou Kanji, mantém original
+      if (wanakana.isJapanese(text)) return text;
+      // Converte texto em letras latinas (Romaji) para Hiragana
+      return wanakana.toHiragana(text.toLowerCase(), { IMEMode: false });
+    }
+
+    // Tradução via Google Translate + WanaKana (Romaji) + Fallback MyMemory
     async function translateToPtBR(text, sourceLang = 'auto') {
       if (!text || text.trim().length === 0) return { translated: '', ok: false };
       const cleanText = text.trim();
 
+      // Se o usuário selecionou Japonês e digitou em Romaji (ex: "Watashi Wa"), converte para Hiragana antes de traduzir
+      let queryText = cleanText;
+      let effectiveLang = sourceLang;
+
+      if (sourceLang === 'ja' && typeof wanakana !== 'undefined' && wanakana.isRomaji(cleanText)) {
+        queryText = prepareJapaneseText(cleanText);
+      }
+
       // Tentativa 1: Google Translate (gtx)
       try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=pt-BR&dt=t&q=${encodeURIComponent(cleanText)}`;
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(effectiveLang)}&tl=pt-BR&dt=t&q=${encodeURIComponent(queryText)}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
@@ -556,14 +574,12 @@
             const fullTranslated = data[0].map(segment => segment[0] || '').join('').trim();
             const detectedLang = (data[2] || '').toLowerCase();
 
-            if (fullTranslated) {
-              // Se o usuário escolheu um idioma manualmente (diferente de auto), aceita a tradução mesmo que pareça similar
-              if (sourceLang !== 'auto') {
+            if (fullTranslated && fullTranslated.toLowerCase() !== cleanText.toLowerCase() && fullTranslated !== queryText) {
+              if (effectiveLang !== 'auto') {
                 return { translated: fullTranslated, ok: true };
               }
-              // No modo auto, verifica se não retornou português idêntico
               const isPt = detectedLang === 'pt' || detectedLang === 'pt-br';
-              if (!isPt && fullTranslated.toLowerCase() !== cleanText.toLowerCase()) {
+              if (!isPt) {
                 return { translated: fullTranslated, ok: true };
               }
             }
@@ -573,15 +589,34 @@
         console.warn('Google Translate falhou, tentando fallback...', e);
       }
 
-      // Tentativa 2 (Fallback): MyMemory API (exige par explícito; usa 'ja|pt-BR' se auto tiver caracteres japoneses ou romaji)
+      // Se estava em modo Auto e não traduziu (provável Romaji), tenta converter como Romaji Japonês
+      if (sourceLang === 'auto' && typeof wanakana !== 'undefined' && wanakana.isRomaji(cleanText)) {
+        const hiraganaText = prepareJapaneseText(cleanText);
+        if (hiraganaText !== cleanText.toLowerCase()) {
+          try {
+            const jaUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=pt-BR&dt=t&q=${encodeURIComponent(hiraganaText)}`;
+            const res = await fetch(jaUrl);
+            if (res.ok) {
+              const data = await res.json();
+              const fullTranslated = data?.[0]?.map(s => s[0] || '').join('').trim();
+              if (fullTranslated && fullTranslated !== hiraganaText && fullTranslated.toLowerCase() !== cleanText.toLowerCase()) {
+                return { translated: fullTranslated, ok: true };
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      // Tentativa 2 (Fallback): MyMemory API
       try {
-        const pairLang = sourceLang === 'auto' ? 'ja' : sourceLang;
-        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${encodeURIComponent(pairLang)}|pt-BR`;
+        const pairLang = effectiveLang === 'auto' ? 'ja' : effectiveLang;
+        const mmQuery = pairLang === 'ja' ? prepareJapaneseText(cleanText) : cleanText;
+        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(mmQuery)}&langpair=${encodeURIComponent(pairLang)}|pt-BR`;
         const res = await fetch(mmUrl);
         if (res.ok) {
           const data = await res.json();
           const translated = (data?.responseData?.translatedText || '').trim();
-          if (translated && translated.toLowerCase() !== cleanText.toLowerCase()) {
+          if (translated && translated.toLowerCase() !== cleanText.toLowerCase() && translated !== mmQuery) {
             return { translated, ok: true };
           }
         }
@@ -611,7 +646,7 @@
         showToast('Título traduzido para Português!', 'success');
       } else {
         altInput.value = '';
-        showToast('Não foi possível detectar o idioma automaticamente. Selecione "Japonês" (ou o idioma desejado) no seletor ao lado e clique em Traduzir.', 'warning');
+        showToast('Não foi possível traduzir. Verifique se o idioma selecionado corresponde ao título.', 'warning');
       }
     }
 
