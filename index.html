@@ -126,11 +126,20 @@
           </div>
 
           <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="block text-xs text-gray-400">Título Alternativo (PT-BR)</label>
-              <button type="button" onclick="translateTitleManual()" class="text-[10px] text-brand-400 hover:text-brand-300 flex items-center gap-1">
-                <i class="fa-solid fa-language"></i> Traduzir Original → PT
-              </button>
+            <div class="flex justify-between items-center gap-1 mb-1">
+              <label class="block text-xs text-gray-400 truncate">Título Alternativo (PT-BR)</label>
+              <div class="flex items-center gap-1 shrink-0">
+                <select id="sourceLangSelect" title="Idioma de origem" class="bg-gray-950 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300 focus:outline-none focus:border-brand-500">
+                  <option value="auto">Auto</option>
+                  <option value="ja">Japonês</option>
+                  <option value="ko">Coreano</option>
+                  <option value="zh-CN">Chinês</option>
+                  <option value="en">Inglês</option>
+                </select>
+                <button type="button" onclick="translateTitleManual()" class="text-[10px] bg-brand-950 hover:bg-brand-900 text-brand-300 border border-brand-800/70 px-2 py-0.5 rounded flex items-center gap-1 transition">
+                  <i class="fa-solid fa-language"></i> Traduzir
+                </button>
+              </div>
             </div>
             <input type="text" id="mangaAltTitle" placeholder="Tradução em português (opcional)" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
@@ -223,13 +232,13 @@
   </div>
 
   <!-- Modal de Visualização Expandida do Card -->
-  <div id="cardModal" onclick="closeCardModal(event)" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+  <div id="cardModal" onclick="closeCardModal()" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div onclick="event.stopPropagation()" class="bg-gray-900 border border-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
       <div id="modalContent"></div>
     </div>
   </div>
 
-  <!-- Container de Notificações Toast (Sem Pop-up) -->
+  <!-- Container de Notificações Toast -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <script>
@@ -272,7 +281,7 @@
       }, 3200);
     }
 
-    // Migração automática para garantir compatibilidade com registros antigos
+    // Migração automática para compatibilidade com registros antigos
     library = library.map(item => ({
       favorite: false,
       altTitle: '',
@@ -298,7 +307,7 @@
       if (counterEl) counterEl.innerText = count;
     }
 
-    // Modal de Detalhes Expandido
+    // Modal de Detalhes Expandido (Inclui Exclusão Segura em 2 Etapas)
     function openCardModal(index) {
       const item = library[index];
       if (!item) return;
@@ -372,8 +381,9 @@
             </div>
           </div>
 
+          <!-- Ações Principais do Modal -->
           <div class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-800">
-            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2">
+            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="flex-1 min-w-[120px] text-center py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition flex items-center justify-center gap-2">
               <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> Abrir Obra
             </a>
             <button onclick="toggleFavorite(${index}); openCardModal(${index});" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl text-sm transition flex items-center gap-1.5">
@@ -382,11 +392,48 @@
             <button onclick="closeCardModal(); editManga(${index});" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-xl text-sm transition flex items-center gap-1.5">
               <i class="fa-solid fa-pen"></i> Editar
             </button>
+            <button id="deleteTriggerBtn" onclick="promptDeleteInModal()" class="px-4 py-2.5 bg-gray-800 hover:bg-red-950/70 text-gray-400 hover:text-red-300 border border-transparent hover:border-red-800/60 rounded-xl text-sm transition flex items-center gap-1.5">
+              <i class="fa-solid fa-trash"></i> Excluir
+            </button>
+          </div>
+
+          <!-- Confirmação Inline de Exclusão (Sem Pop-up Nativo) -->
+          <div id="deleteConfirmBar" class="hidden mt-3 p-3 bg-red-950/50 border border-red-800/70 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span class="text-xs text-red-200 flex items-center gap-2">
+              <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
+              Tem certeza que deseja excluir esta obra permanentemente?
+            </span>
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button onclick="cancelDeleteInModal()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs transition">
+                Cancelar
+              </button>
+              <button onclick="confirmDeleteManga(${index})" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg text-xs transition flex items-center gap-1">
+                <i class="fa-solid fa-trash"></i> Sim, Excluir
+              </button>
+            </div>
           </div>
         </div>
       `;
 
       modal.classList.remove('hidden');
+    }
+
+    function promptDeleteInModal() {
+      document.getElementById('deleteTriggerBtn')?.classList.add('hidden');
+      document.getElementById('deleteConfirmBar')?.classList.remove('hidden');
+    }
+
+    function cancelDeleteInModal() {
+      document.getElementById('deleteConfirmBar')?.classList.add('hidden');
+      document.getElementById('deleteTriggerBtn')?.classList.remove('hidden');
+    }
+
+    function confirmDeleteManga(index) {
+      library.splice(index, 1);
+      saveToStorage();
+      closeCardModal();
+      renderLibrary();
+      showToast('Mangá excluído da biblioteca.', 'info');
     }
 
     function closeCardModal() {
@@ -494,36 +541,61 @@
       }, 2000);
     }
 
-    // Tradução via Google Translate (Detecta idioma -> pt-BR e concatena todos os blocos)
-    async function translateToPtBR(text) {
-      if (!text || text.trim().length === 0) return { translated: '', isForeign: false };
-      const containsAsianChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u4e00-\u9faf\uac00-\ud7af]/.test(text);
+    // Tradução com suporte a idioma forçado + Fallback de API
+    async function translateToPtBR(text, sourceLang = 'auto') {
+      if (!text || text.trim().length === 0) return { translated: '', ok: false };
+      const cleanText = text.trim();
 
+      // Tentativa 1: Google Translate (gtx)
       try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt-BR&dt=t&q=${encodeURIComponent(text)}`;
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=pt-BR&dt=t&q=${encodeURIComponent(cleanText)}`;
         const res = await fetch(url);
-        const data = await res.json();
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data[0])) {
+            const fullTranslated = data[0].map(segment => segment[0] || '').join('').trim();
+            const detectedLang = (data[2] || '').toLowerCase();
 
-        if (data && Array.isArray(data[0])) {
-          const fullTranslated = data[0].map(segment => segment[0] || '').join('').trim();
-          const detectedLang = (data[2] || '').toLowerCase();
-          const isPortuguese = detectedLang === 'pt' || detectedLang === 'pt-br';
-          const changed = fullTranslated.toLowerCase() !== text.trim().toLowerCase();
-
-          if ((!isPortuguese && changed) || containsAsianChar) {
-            return { translated: fullTranslated, isForeign: true };
+            if (fullTranslated) {
+              // Se o usuário escolheu um idioma manualmente (diferente de auto), aceita a tradução mesmo que pareça similar
+              if (sourceLang !== 'auto') {
+                return { translated: fullTranslated, ok: true };
+              }
+              // No modo auto, verifica se não retornou português idêntico
+              const isPt = detectedLang === 'pt' || detectedLang === 'pt-br';
+              if (!isPt && fullTranslated.toLowerCase() !== cleanText.toLowerCase()) {
+                return { translated: fullTranslated, ok: true };
+              }
+            }
           }
         }
       } catch (e) {
-        console.error('Erro na tradução:', e);
+        console.warn('Google Translate falhou, tentando fallback...', e);
       }
 
-      return { translated: '', isForeign: false };
+      // Tentativa 2 (Fallback): MyMemory API (exige par explícito; usa 'ja|pt-BR' se auto tiver caracteres japoneses ou romaji)
+      try {
+        const pairLang = sourceLang === 'auto' ? 'ja' : sourceLang;
+        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${encodeURIComponent(pairLang)}|pt-BR`;
+        const res = await fetch(mmUrl);
+        if (res.ok) {
+          const data = await res.json();
+          const translated = (data?.responseData?.translatedText || '').trim();
+          if (translated && translated.toLowerCase() !== cleanText.toLowerCase()) {
+            return { translated, ok: true };
+          }
+        }
+      } catch (e) {
+        console.error('Fallback de tradução falhou:', e);
+      }
+
+      return { translated: '', ok: false };
     }
 
     async function translateTitleManual() {
       const titleInput = document.getElementById('mangaTitle');
       const altInput = document.getElementById('mangaAltTitle');
+      const sourceLang = document.getElementById('sourceLangSelect').value;
       const sourceText = titleInput.value.trim();
 
       if (!sourceText) {
@@ -532,14 +604,14 @@
       }
 
       altInput.value = 'Traduzindo...';
-      const result = await translateToPtBR(sourceText);
+      const result = await translateToPtBR(sourceText, sourceLang);
 
-      if (result.isForeign && result.translated) {
+      if (result.ok && result.translated) {
         altInput.value = result.translated;
         showToast('Título traduzido para Português!', 'success');
       } else {
         altInput.value = '';
-        showToast('O título já parece estar em português ou não pôde ser traduzido.', 'info');
+        showToast('Não foi possível detectar o idioma automaticamente. Selecione "Japonês" (ou o idioma desejado) no seletor ao lado e clique em Traduzir.', 'warning');
       }
     }
 
@@ -600,8 +672,9 @@
 
         if (rawTitle) {
           document.getElementById('mangaTitle').value = rawTitle;
-          const translation = await translateToPtBR(rawTitle);
-          if (translation.isForeign && translation.translated) {
+          const sourceLang = document.getElementById('sourceLangSelect').value;
+          const translation = await translateToPtBR(rawTitle, sourceLang);
+          if (translation.ok && translation.translated) {
             document.getElementById('mangaAltTitle').value = translation.translated;
           }
         }
@@ -710,15 +783,6 @@
         : '<i class="fa-solid fa-check"></i> Salvar Alterações';
       document.getElementById('cancelBtn').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function deleteManga(index) {
-      if (confirm('Tem certeza que deseja remover este mangá?')) {
-        library.splice(index, 1);
-        saveToStorage();
-        renderLibrary();
-        showToast('Mangá removido da biblioteca.', 'info');
-      }
     }
 
     function resetForm() {
@@ -838,11 +902,8 @@
             <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded text-xs font-medium transition flex items-center justify-center gap-1">
               <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Ler
             </a>
-            <button onclick="editManga(${realIndex})" class="px-2 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition">
+            <button onclick="editManga(${realIndex})" title="Editar" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition flex items-center gap-1">
               <i class="fa-solid fa-pen"></i>
-            </button>
-            <button onclick="deleteManga(${realIndex})" class="px-2 py-1.5 bg-gray-800 hover:bg-red-900/50 text-gray-400 hover:text-red-300 rounded text-xs transition">
-              <i class="fa-solid fa-trash"></i>
             </button>
           </div>
         `;
