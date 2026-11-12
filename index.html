@@ -31,7 +31,10 @@
           <p class="text-[10px] text-gray-500">Organizador Pessoal de Mídias & Links</p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="startQuickQueue()" id="quickQueueBtn" class="px-3 py-1.5 text-xs bg-amber-950/60 hover:bg-amber-900/70 text-amber-300 rounded-lg transition border border-amber-800/60 flex items-center gap-1.5">
+          <i class="fa-solid fa-bolt"></i> Fila Rápida (<span id="pendingCount">0</span>)
+        </button>
         <button onclick="exportData()" class="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition border border-gray-700 flex items-center gap-1.5">
           <i class="fa-solid fa-download"></i> Exportar
         </button>
@@ -43,23 +46,45 @@
     </header>
 
     <!-- Navigation Tabs -->
-    <div class="flex border-b border-gray-800 mb-6 gap-2 text-sm font-medium">
-      <button class="py-2 px-4 border-b-2 border-brand-500 text-brand-400 flex items-center gap-2">
+    <div class="flex border-b border-gray-800 mb-6 gap-2 text-sm font-medium overflow-x-auto">
+      <button class="py-2 px-4 border-b-2 border-brand-500 text-brand-400 flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-book"></i> Mangás & One-Shots
       </button>
-      <button onclick="alert('Aba de Animes será ativada em breve!')" class="py-2 px-4 text-gray-500 hover:text-gray-300 flex items-center gap-2 transition">
+      <button onclick="alert('Aba de Animes será ativada em breve!')" class="py-2 px-4 text-gray-500 hover:text-gray-300 flex items-center gap-2 transition whitespace-nowrap">
         <i class="fa-solid fa-tv"></i> Animes (Em breve)
       </button>
-      <button onclick="alert('Aba de Links Gerais será ativada em breve!')" class="py-2 px-4 text-gray-500 hover:text-gray-300 flex items-center gap-2 transition">
+      <button onclick="alert('Aba de Links Gerais será ativada em breve!')" class="py-2 px-4 text-gray-500 hover:text-gray-300 flex items-center gap-2 transition whitespace-nowrap">
         <i class="fa-solid fa-link"></i> Links Gerais (Em breve)
       </button>
     </div>
 
+    <!-- Banner Modo Fila Rápida -->
+    <div id="queueBanner" class="hidden bg-amber-950/40 border border-amber-700/60 rounded-xl p-3 mb-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-xs text-amber-200">
+        <i class="fa-solid fa-bolt text-amber-400"></i>
+        <span><strong>Modo Fila Rápida Ativo:</strong> Editando item pendente. Ao salvar, o próximo será carregado automaticamente.</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="skipQueueItem()" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded text-xs transition">
+          Pular <i class="fa-solid fa-forward-step ml-1"></i>
+        </button>
+        <button type="button" onclick="stopQuickQueue()" class="px-3 py-1 bg-red-950/70 hover:bg-red-900 text-red-200 rounded text-xs transition">
+          Sair da Fila
+        </button>
+      </div>
+    </div>
+
     <!-- Form Section -->
-    <section class="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 mb-8 shadow-xl">
-      <h2 id="formTitle" class="text-lg font-semibold mb-4 text-brand-500 flex items-center gap-2">
-        <i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot
-      </h2>
+    <section id="formSection" class="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 mb-8 shadow-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="formTitle" class="text-lg font-semibold text-brand-500 flex items-center gap-2">
+          <i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot
+        </h2>
+        <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-300 bg-gray-950 px-3 py-1.5 rounded-lg border border-gray-800 hover:border-yellow-500/50 transition">
+          <input type="checkbox" id="mangaFavorite" class="accent-yellow-400 w-3.5 h-3.5" />
+          <i class="fa-solid fa-star text-yellow-400"></i> Favorito
+        </label>
+      </div>
       
       <form id="mangaForm" onsubmit="saveManga(event)" class="space-y-4">
         <input type="hidden" id="editIndex" value="-1" />
@@ -69,24 +94,27 @@
           <input type="url" id="mangaUrl" required oninput="handleUrlInput()" placeholder="https://site.com/manga-exemplo/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
         </div>
 
-        <!-- Gerador de Texto view-source -->
+        <!-- Gerador de Texto view-source (Copiar + Abrir) -->
         <div id="viewSourceContainer" class="hidden bg-gray-950/80 border border-gray-800/80 rounded-xl p-3 space-y-3">
           <div>
             <label class="block text-xs font-medium text-brand-400 mb-1">
-              <i class="fa-solid fa-copy"></i> Copie este texto e cole na barra do navegador para abrir o HTML:
+              <i class="fa-solid fa-code"></i> Atalho view-source (Copie para colar na barra ou clique em Abrir):
             </label>
             <div class="flex gap-2">
               <input type="text" id="viewSourceText" readonly onclick="this.select()" class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs text-brand-300 font-mono select-all focus:outline-none focus:border-brand-500" />
               <button type="button" onclick="copyViewSourceText()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
                 <i class="fa-solid fa-clone"></i> Copiar
               </button>
+              <a id="openViewSourceBtn" href="#" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 bg-brand-950 hover:bg-brand-900 text-brand-300 border border-brand-700/50 rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir
+              </a>
             </div>
           </div>
 
           <div class="pt-2 border-t border-gray-800/60">
             <label class="block text-[11px] text-gray-400 mb-1">Cole o HTML copiado aqui (Opcional):</label>
             <div class="flex gap-2">
-              <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o HTML para tentar extrair Capa, Autor e Tags..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
+              <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o HTML para extrair Capa, Autor, Tags e Traduzir Título..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
               <button type="button" onclick="parseHtmlSource()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Extrair Dados
               </button>
@@ -96,18 +124,18 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Título do Mangá *</label>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs text-gray-400">Título do Mangá *</label>
+              <button type="button" onclick="translateTitleManual()" class="text-[10px] text-brand-400 hover:text-brand-300 flex items-center gap-1">
+                <i class="fa-solid fa-language"></i> Traduzir para PT
+              </button>
+            </div>
             <input type="text" id="mangaTitle" required placeholder="Ex: Título da Obra" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">Autor / Artista</label>
             <input type="text" id="mangaAuthor" placeholder="Login Necessário" value="Login Necessário" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
-          </div>
-
-          <div>
-            <label class="block text-xs text-gray-400 mb-1">Link do Perfil do Autor (Opcional)</label>
-            <input type="url" id="mangaAuthorUrl" placeholder="https://site.com/tags/nome-autor/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
@@ -159,6 +187,8 @@
         </div>
         <select id="statusFilter" onchange="renderLibrary()" class="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 text-gray-200">
           <option value="Todos">Todos os Status</option>
+          <option value="Favoritos">⭐ Apenas Favoritos</option>
+          <option value="Pendentes">⚠️ Pendentes de Dados</option>
           <option value="Lido">Lido</option>
           <option value="Quero Ler">Quero Ler</option>
           <option value="Lendo">Lendo</option>
@@ -188,15 +218,83 @@
   <script>
     let library = JSON.parse(localStorage.getItem('mangaVaultData')) || [];
     let selectedTag = '';
+    let isQueueMode = false;
+    let skippedUrls = new Set();
+
+    // Migração automática para garantir campo 'favorite' em registros antigos
+    library = library.map(item => ({
+      favorite: false,
+      ...item
+    }));
 
     function saveToStorage() {
       localStorage.setItem('mangaVaultData', JSON.stringify(library));
+      updatePendingCounter();
+    }
+
+    // Critério para identificar um mangá pendente de atualização/dados
+    function isItemPending(item) {
+      const noCover = !item.cover || item.cover.trim() === '';
+      const defaultAuthor = !item.author || item.author === 'Login Necessário';
+      const fewTags = !item.tags || item.tags.filter(t => t !== item.source).length === 0;
+      return noCover || defaultAuthor || fewTags;
+    }
+
+    function updatePendingCounter() {
+      const count = library.filter(isItemPending).length;
+      const counterEl = document.getElementById('pendingCount');
+      if (counterEl) counterEl.innerText = count;
+    }
+
+    // Controles da Fila de Edição Rápida
+    function startQuickQueue() {
+      skippedUrls.clear();
+      const nextIndex = library.findIndex(item => isItemPending(item));
+      if (nextIndex === -1) {
+        alert('🎉 Parabéns! Todos os mangás da sua biblioteca já estão completos!');
+        return;
+      }
+      isQueueMode = true;
+      document.getElementById('queueBanner').classList.remove('hidden');
+      editManga(nextIndex);
+    }
+
+    function skipQueueItem() {
+      const currentIndex = parseInt(document.getElementById('editIndex').value);
+      if (currentIndex !== -1 && library[currentIndex]) {
+        skippedUrls.add(library[currentIndex].url);
+      }
+      loadNextInQueue();
+    }
+
+    function loadNextInQueue() {
+      const nextIndex = library.findIndex(item => isItemPending(item) && !skippedUrls.has(item.url));
+      if (nextIndex === -1) {
+        stopQuickQueue();
+        alert('✅ Fila rápida concluída!');
+        return;
+      }
+      editManga(nextIndex);
+    }
+
+    function stopQuickQueue() {
+      isQueueMode = false;
+      skippedUrls.clear();
+      document.getElementById('queueBanner').classList.add('hidden');
+      resetForm();
+    }
+
+    function toggleFavorite(index) {
+      library[index].favorite = !library[index].favorite;
+      saveToStorage();
+      renderLibrary();
     }
 
     function handleUrlInput() {
       const urlInput = document.getElementById('mangaUrl').value.trim();
       const container = document.getElementById('viewSourceContainer');
       const viewSourceTextField = document.getElementById('viewSourceText');
+      const openBtn = document.getElementById('openViewSourceBtn');
 
       if (!urlInput) {
         container.classList.add('hidden');
@@ -223,7 +321,9 @@
           }
         }
 
-        viewSourceTextField.value = `view-source:${urlInput}`;
+        const viewSourceUrl = `view-source:${urlInput}`;
+        viewSourceTextField.value = viewSourceUrl;
+        openBtn.href = viewSourceUrl;
         container.classList.remove('hidden');
 
       } catch (e) {
@@ -238,19 +338,37 @@
       alert('Texto view-source copiado! Cole na barra do navegador.');
     }
 
-    function toggleCardExpand(index) {
-      const details = document.getElementById(`details-${index}`);
-      const icon = document.getElementById(`expand-icon-${index}`);
-      if (details) {
-        details.classList.toggle('hidden');
-        if (icon) {
-          icon.classList.toggle('fa-chevron-down');
-          icon.classList.toggle('fa-chevron-up');
+    // Tradução Inteligente (Detecta idioma estrangeiro / Romaji e traduz para PT)
+    async function translateText(text, targetLang = 'pt') {
+      if (!text || text.trim().length === 0) return text;
+      const containsAsianChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u4e00-\u9faf\uac00-\ud7af]/.test(text);
+
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`);
+        const data = await res.json();
+        
+        if (data && data[0] && data[0][0] && data[0][0][0]) {
+          const translated = data[0][0][0];
+          const detectedLang = data[2];
+          
+          if ((detectedLang && detectedLang !== 'pt' && translated.toLowerCase() !== text.toLowerCase()) || containsAsianChar) {
+            return `${translated} (${text})`;
+          }
         }
-      }
+      } catch (e) {}
+      return text;
     }
 
-    function parseHtmlSource() {
+    async function translateTitleManual() {
+      const input = document.getElementById('mangaTitle');
+      if (!input.value) return;
+      const original = input.value;
+      input.value = 'Traduzindo...';
+      const translated = await translateText(original, 'pt');
+      input.value = translated;
+    }
+
+    async function parseHtmlSource() {
       const rawHtml = document.getElementById('htmlSourceCode').value.trim();
       if (!rawHtml) {
         alert('Cole o código HTML no campo antes de clicar em Extrair Dados.');
@@ -261,7 +379,7 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(rawHtml, 'text/html');
 
-        // 1. EXTRAÇÃO VIA JSON-LD
+        // 1. EXTRAÇÃO VIA JSON-LD (Yoast SEO / Schema.org) - Modelo limpo sem conflito de links
         const jsonLdScripts = doc.querySelectorAll('script[type="application/ld+json"]');
         let extractedKeywords = [];
         let jsonCover = '';
@@ -285,51 +403,36 @@
           } catch (e) {}
         });
 
+        // Fallback de meta keywords tradicional
+        const metaKeywords = doc.querySelector('meta[name="keywords"]')?.content;
+        if (metaKeywords) {
+          extractedKeywords = extractedKeywords.concat(metaKeywords.split(',').map(k => k.trim()));
+        }
+
         if (extractedKeywords.length > 0) {
           const currentTags = document.getElementById('mangaTags').value;
-          const uniqueTags = Array.from(new Set(extractedKeywords));
-          document.getElementById('mangaTags').value = currentTags ? `${currentTags}, ${uniqueTags.join(', ')}` : uniqueTags.join(', ');
+          const existingList = currentTags ? currentTags.split(',').map(t => t.trim()).filter(Boolean) : [];
+          const uniqueTags = Array.from(new Set([...existingList, ...extractedKeywords])).filter(Boolean);
+          document.getElementById('mangaTags').value = uniqueTags.join(', ');
         }
 
-        // 2. EXTRAÇÃO DE AUTOR E LINK DO AUTOR POR ESTRUTURA DE LINKS
-        let extractedAuthor = '';
-        let extractedAuthorUrl = '';
-        
-        const authorLinkMatch = rawHtml.match(/href=["']((?:\https?:\/\/[^\/]+)?\/(?:tags|artist|author|artista|autor)\/([^\/"']+)\/?)["']/i);
-        if (authorLinkMatch) {
-          extractedAuthorUrl = authorLinkMatch[1];
-          if (!extractedAuthorUrl.startsWith('http')) {
-            const currentUrl = document.getElementById('mangaUrl').value;
-            if (currentUrl) {
-              const urlObj = new URL(currentUrl);
-              extractedAuthorUrl = `${urlObj.origin}${extractedAuthorUrl}`;
-            }
-          }
-          let authorSlug = authorLinkMatch[2].replace(/-/g, ' ');
-          extractedAuthor = authorSlug.replace(/\b\w/g, l => l.toUpperCase());
-        }
-
-        // Fallback de Autor por texto
-        if (!extractedAuthor) {
-          const fullText = doc.body.textContent || rawHtml;
-          const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
-          if (authorMatch && authorMatch[1]) {
-            extractedAuthor = authorMatch[1].trim();
-          }
-        }
-
-        if (extractedAuthor) document.getElementById('mangaAuthor').value = extractedAuthor;
-        if (extractedAuthorUrl) document.getElementById('mangaAuthorUrl').value = extractedAuthorUrl;
-
-        // 3. Extrair Título
+        // 2. Extrair Título + Auto-Tradução
         const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
         const pageTitle = doc.querySelector('title')?.textContent;
-        const extractedTitle = jsonTitle || ogTitle || pageTitle;
-        if (extractedTitle) {
-          document.getElementById('mangaTitle').value = extractedTitle
-            .replace(/ - Ler Online.*/i, '')
-            .replace(/ \| .*/, '')
-            .trim();
+        const rawTitle = (jsonTitle || ogTitle || pageTitle || '')
+          .replace(/ - Ler Online.*/i, '')
+          .replace(/ \| .*/, '')
+          .trim();
+
+        if (rawTitle) {
+          document.getElementById('mangaTitle').value = await translateText(rawTitle, 'pt');
+        }
+
+        // 3. Extrair Autor (Apenas busca textual explícita, sem varrer links de tags)
+        const fullText = doc.body.textContent || rawHtml;
+        const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
+        if (authorMatch && authorMatch[1]) {
+          document.getElementById('mangaAuthor').value = authorMatch[1].trim();
         }
 
         // 4. Extrair Capa
@@ -339,7 +442,7 @@
           document.getElementById('mangaCover').value = jsonCover || ogImage || mainImg;
         }
 
-        // 5. Filtrar Sinopse
+        // 5. Filtrar Sinopse (Ignora chamadas genéricas)
         const rawDesc = doc.querySelector('meta[property="og:description"]')?.content || 
                         doc.querySelector('meta[name="description"]')?.content || '';
         
@@ -348,7 +451,7 @@
           document.getElementById('mangaSynopsis').value = rawDesc.trim();
         }
 
-        alert('✨ Dados do HTML e Link do Autor extraídos!');
+        alert('✨ Dados do HTML extraídos com sucesso!');
       } catch (err) {
         alert('Não foi possível ler a estrutura deste HTML.');
       }
@@ -360,12 +463,12 @@
       const url = document.getElementById('mangaUrl').value.trim();
       const title = document.getElementById('mangaTitle').value.trim();
       const author = document.getElementById('mangaAuthor').value.trim() || 'Login Necessário';
-      const authorUrl = document.getElementById('mangaAuthorUrl').value.trim();
       const source = document.getElementById('mangaSource').value.trim();
       const status = document.getElementById('mangaStatus').value;
       const cover = document.getElementById('mangaCover').value.trim();
       const synopsis = document.getElementById('mangaSynopsis').value.trim();
       const tagsInput = document.getElementById('mangaTags').value.trim();
+      const favorite = document.getElementById('mangaFavorite').checked;
       const editIndex = parseInt(document.getElementById('editIndex').value);
 
       let tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -383,7 +486,7 @@
         }
       }
 
-      const mangaItem = { url, title, author, authorUrl, source, status, cover, synopsis, tags, updatedAt: new Date().toISOString() };
+      const mangaItem = { url, title, author, source, status, cover, synopsis, tags, favorite, updatedAt: new Date().toISOString() };
 
       if (editIndex === -1) {
         library.unshift(mangaItem);
@@ -392,8 +495,13 @@
       }
 
       saveToStorage();
-      resetForm();
       renderLibrary();
+
+      if (isQueueMode) {
+        loadNextInQueue();
+      } else {
+        resetForm();
+      }
     }
 
     function editManga(index) {
@@ -402,18 +510,20 @@
       document.getElementById('mangaUrl').value = item.url;
       document.getElementById('mangaTitle').value = item.title;
       document.getElementById('mangaAuthor').value = item.author || 'Login Necessário';
-      document.getElementById('mangaAuthorUrl').value = item.authorUrl || '';
       document.getElementById('mangaSource').value = item.source || '';
       document.getElementById('mangaStatus').value = item.status;
       document.getElementById('mangaCover').value = item.cover || '';
       document.getElementById('mangaSynopsis').value = item.synopsis || '';
       document.getElementById('mangaTags').value = item.tags ? item.tags.join(', ') : '';
+      document.getElementById('mangaFavorite').checked = !!item.favorite;
       document.getElementById('htmlSourceCode').value = '';
       
       handleUrlInput();
 
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-pen"></i> Editar Mangá';
-      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Salvar Alterações';
+      document.getElementById('saveBtn').innerHTML = isQueueMode 
+        ? '<i class="fa-solid fa-forward"></i> Salvar & Próximo' 
+        : '<i class="fa-solid fa-check"></i> Salvar Alterações';
       document.getElementById('cancelBtn').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -430,8 +540,8 @@
       document.getElementById('mangaForm').reset();
       document.getElementById('editIndex').value = -1;
       document.getElementById('mangaAuthor').value = 'Login Necessário';
-      document.getElementById('mangaAuthorUrl').value = '';
       document.getElementById('mangaStatus').value = 'Lido';
+      document.getElementById('mangaFavorite').checked = false;
       document.getElementById('htmlSourceCode').value = '';
       document.getElementById('viewSourceContainer').classList.add('hidden');
       document.getElementById('formTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Adicionar Novo Mangá / One-Shot';
@@ -461,6 +571,7 @@
       const statusFilter = document.getElementById('statusFilter').value;
 
       grid.innerHTML = '';
+      updatePendingCounter();
 
       const filtered = library.filter(item => {
         const matchesSearch = item.title.toLowerCase().includes(search) ||
@@ -468,7 +579,15 @@
                               (item.synopsis && item.synopsis.toLowerCase().includes(search)) ||
                               (item.tags && item.tags.some(t => t.toLowerCase().includes(search)));
         
-        const matchesStatus = statusFilter === 'Todos' || item.status === statusFilter;
+        let matchesStatus = true;
+        if (statusFilter === 'Favoritos') {
+          matchesStatus = !!item.favorite;
+        } else if (statusFilter === 'Pendentes') {
+          matchesStatus = isItemPending(item);
+        } else if (statusFilter !== 'Todos') {
+          matchesStatus = item.status === statusFilter;
+        }
+
         const matchesTag = !selectedTag || (item.tags && item.tags.includes(selectedTag));
 
         return matchesSearch && matchesStatus && matchesTag;
@@ -483,36 +602,34 @@
       filtered.forEach((item) => {
         const realIndex = library.indexOf(item);
         const coverUrl = item.cover || 'https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa';
+        const pending = isItemPending(item);
         
         const card = document.createElement('div');
-        card.className = 'bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition';
+        card.className = `bg-gray-900 border ${item.favorite ? 'border-yellow-500/50' : 'border-gray-800'} rounded-xl overflow-hidden shadow-lg flex flex-col justify-between hover:border-gray-700 transition`;
         card.innerHTML = `
           <div>
-            <div class="relative aspect-[3/4] overflow-hidden bg-gray-950 cursor-pointer" onclick="toggleCardExpand(${realIndex})">
+            <div class="relative aspect-[3/4] overflow-hidden bg-gray-950">
               <img src="${coverUrl}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x420/111827/9CA3AF?text=Sem+Capa'" />
-              <span class="absolute top-2 right-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-950/80 text-brand-300 backdrop-blur-sm border border-gray-700">
-                ${item.status}
-              </span>
+              
+              <!-- Botão Favorito (Estrela) -->
+              <button onclick="toggleFavorite(${realIndex})" title="Favoritar" class="absolute top-2 left-2 w-7 h-7 rounded-full bg-gray-950/80 backdrop-blur-sm border border-gray-700 flex items-center justify-center transition hover:scale-110">
+                <i class="fa-solid fa-star text-xs ${item.favorite ? 'text-yellow-400' : 'text-gray-500'}"></i>
+              </button>
+
+              <!-- Badge de Status + Indicador Pendente -->
+              <div class="absolute top-2 right-2 flex items-center gap-1">
+                ${pending ? `<span title="Pendente de dados (capa, autor ou tags)" class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-950/90 text-amber-300 border border-amber-700/70"><i class="fa-solid fa-triangle-exclamation"></i></span>` : ''}
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-950/80 text-brand-300 backdrop-blur-sm border border-gray-700">
+                  ${item.status}
+                </span>
+              </div>
             </div>
             
             <div class="p-3">
-              <div class="flex justify-between items-start gap-1 cursor-pointer" onclick="toggleCardExpand(${realIndex})">
-                <h3 class="font-semibold text-sm line-clamp-1 text-gray-100 flex-1" title="${item.title}">${item.title}</h3>
-                <i id="expand-icon-${realIndex}" class="fa-solid fa-chevron-down text-xs text-gray-500 mt-1"></i>
-              </div>
-              
+              <h3 class="font-semibold text-sm line-clamp-1 text-gray-100" title="${item.title}">${item.title}</h3>
               <p class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-user text-[10px]"></i> ${item.author || 'Login Necessário'}</p>
               
-              <!-- Detalhes Expansíveis -->
-              <div id="details-${realIndex}" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-2">
-                ${item.synopsis ? `<p class="text-[11px] text-gray-300 bg-gray-950/60 p-2 rounded border border-gray-800/80">${item.synopsis}</p>` : ''}
-                
-                ${item.authorUrl ? `
-                  <a href="${item.authorUrl}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-brand-400 hover:text-brand-300 flex items-center gap-1 bg-brand-950/40 border border-brand-900/60 px-2 py-1 rounded w-fit">
-                    <i class="fa-solid fa-user-gear text-[10px]"></i> Ver Página do Autor
-                  </a>
-                ` : ''}
-              </div>
+              ${item.synopsis ? `<p class="text-[11px] text-gray-500 line-clamp-2 mt-1.5">${item.synopsis}</p>` : ''}
 
               <div class="flex flex-wrap gap-1 mt-2">
                 ${item.tags ? item.tags.map(t => `
@@ -559,7 +676,7 @@
         try {
           const imported = JSON.parse(e.target.result);
           if (Array.isArray(imported)) {
-            library = imported;
+            library = imported.map(item => ({ favorite: false, ...item }));
             saveToStorage();
             renderLibrary();
             alert('Biblioteca importada com sucesso!');
