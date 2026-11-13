@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MangaVault - Seu Organizador de Conteúdo</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/wanakana"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <script>
     tailwind.config = {
@@ -112,7 +111,7 @@
           <div class="pt-2 border-t border-gray-800/60">
             <label class="block text-[11px] text-gray-400 mb-1">Cole o HTML copiado aqui (Opcional):</label>
             <div class="flex gap-2">
-              <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o HTML para extrair Capa, Autor, Tags e Traduzir Título..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
+              <textarea id="htmlSourceCode" rows="1" placeholder="Cole aqui o HTML para extrair Capa, Autor, Link do Autor e Tags..." class="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-brand-500 text-gray-300"></textarea>
               <button type="button" onclick="parseHtmlSource()" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Extrair Dados
               </button>
@@ -127,22 +126,8 @@
           </div>
 
           <div>
-            <div class="flex justify-between items-center gap-1 mb-1">
-              <label class="block text-xs text-gray-400 truncate">Título Alternativo (PT-BR)</label>
-              <div class="flex items-center gap-1 shrink-0">
-                <select id="sourceLangSelect" title="Idioma de origem" class="bg-gray-950 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300 focus:outline-none focus:border-brand-500">
-                  <option value="auto">Auto</option>
-                  <option value="ja">Japonês / Romaji</option>
-                  <option value="ko">Coreano</option>
-                  <option value="zh-CN">Chinês</option>
-                  <option value="en">Inglês</option>
-                </select>
-                <button type="button" onclick="translateTitleManual()" class="text-[10px] bg-brand-950 hover:bg-brand-900 text-brand-300 border border-brand-800/70 px-2 py-0.5 rounded flex items-center gap-1 transition">
-                  <i class="fa-solid fa-language"></i> Traduzir
-                </button>
-              </div>
-            </div>
-            <input type="text" id="mangaAltTitle" placeholder="Tradução em português (opcional)" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+            <label class="block text-xs text-gray-400 mb-1">Título Alternativo (PT-BR)</label>
+            <input type="text" id="mangaAltTitle" placeholder="Título traduzido ou alternativo (opcional)" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
@@ -152,7 +137,7 @@
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">Link do Perfil do Autor (Opcional)</label>
-            <input type="url" id="mangaAuthorUrl" placeholder="https://site.com/autor/..." class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+            <input type="url" id="mangaAuthorUrl" placeholder="https://bakai.org/tags/nome-autor/" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
 
           <div>
@@ -177,7 +162,7 @@
 
           <div class="sm:col-span-2">
             <label class="block text-xs text-gray-400 mb-1">Tags / Gêneros (separados por vírgula)</label>
-            <input type="text" id="mangaTags" placeholder="Romance, Gyaru, One-Shot" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
+            <input type="text" id="mangaTags" placeholder="Aventura, Fantasia, Terror" class="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 text-gray-200" />
           </div>
         </div>
 
@@ -542,115 +527,7 @@
       }, 2000);
     }
 
-    // Converte Romaji para Hiragana quando necessário (para a API traduzir corretamente)
-    function prepareJapaneseText(text) {
-      if (typeof wanakana === 'undefined') return text;
-      // Se já tem Hiragana, Katakana ou Kanji, mantém original
-      if (wanakana.isJapanese(text)) return text;
-      // Converte texto em letras latinas (Romaji) para Hiragana
-      return wanakana.toHiragana(text.toLowerCase(), { IMEMode: false });
-    }
-
-    // Tradução via Google Translate + WanaKana (Romaji) + Fallback MyMemory
-    async function translateToPtBR(text, sourceLang = 'auto') {
-      if (!text || text.trim().length === 0) return { translated: '', ok: false };
-      const cleanText = text.trim();
-
-      // Se o usuário selecionou Japonês e digitou em Romaji (ex: "Watashi Wa"), converte para Hiragana antes de traduzir
-      let queryText = cleanText;
-      let effectiveLang = sourceLang;
-
-      if (sourceLang === 'ja' && typeof wanakana !== 'undefined' && wanakana.isRomaji(cleanText)) {
-        queryText = prepareJapaneseText(cleanText);
-      }
-
-      // Tentativa 1: Google Translate (gtx)
-      try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(effectiveLang)}&tl=pt-BR&dt=t&q=${encodeURIComponent(queryText)}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data[0])) {
-            const fullTranslated = data[0].map(segment => segment[0] || '').join('').trim();
-            const detectedLang = (data[2] || '').toLowerCase();
-
-            if (fullTranslated && fullTranslated.toLowerCase() !== cleanText.toLowerCase() && fullTranslated !== queryText) {
-              if (effectiveLang !== 'auto') {
-                return { translated: fullTranslated, ok: true };
-              }
-              const isPt = detectedLang === 'pt' || detectedLang === 'pt-br';
-              if (!isPt) {
-                return { translated: fullTranslated, ok: true };
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Google Translate falhou, tentando fallback...', e);
-      }
-
-      // Se estava em modo Auto e não traduziu (provável Romaji), tenta converter como Romaji Japonês
-      if (sourceLang === 'auto' && typeof wanakana !== 'undefined' && wanakana.isRomaji(cleanText)) {
-        const hiraganaText = prepareJapaneseText(cleanText);
-        if (hiraganaText !== cleanText.toLowerCase()) {
-          try {
-            const jaUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=pt-BR&dt=t&q=${encodeURIComponent(hiraganaText)}`;
-            const res = await fetch(jaUrl);
-            if (res.ok) {
-              const data = await res.json();
-              const fullTranslated = data?.[0]?.map(s => s[0] || '').join('').trim();
-              if (fullTranslated && fullTranslated !== hiraganaText && fullTranslated.toLowerCase() !== cleanText.toLowerCase()) {
-                return { translated: fullTranslated, ok: true };
-              }
-            }
-          } catch (e) {}
-        }
-      }
-
-      // Tentativa 2 (Fallback): MyMemory API
-      try {
-        const pairLang = effectiveLang === 'auto' ? 'ja' : effectiveLang;
-        const mmQuery = pairLang === 'ja' ? prepareJapaneseText(cleanText) : cleanText;
-        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(mmQuery)}&langpair=${encodeURIComponent(pairLang)}|pt-BR`;
-        const res = await fetch(mmUrl);
-        if (res.ok) {
-          const data = await res.json();
-          const translated = (data?.responseData?.translatedText || '').trim();
-          if (translated && translated.toLowerCase() !== cleanText.toLowerCase() && translated !== mmQuery) {
-            return { translated, ok: true };
-          }
-        }
-      } catch (e) {
-        console.error('Fallback de tradução falhou:', e);
-      }
-
-      return { translated: '', ok: false };
-    }
-
-    async function translateTitleManual() {
-      const titleInput = document.getElementById('mangaTitle');
-      const altInput = document.getElementById('mangaAltTitle');
-      const sourceLang = document.getElementById('sourceLangSelect').value;
-      const sourceText = titleInput.value.trim();
-
-      if (!sourceText) {
-        showToast('Preencha o Título Original antes de traduzir.', 'warning');
-        return;
-      }
-
-      altInput.value = 'Traduzindo...';
-      const result = await translateToPtBR(sourceText, sourceLang);
-
-      if (result.ok && result.translated) {
-        altInput.value = result.translated;
-        showToast('Título traduzido para Português!', 'success');
-      } else {
-        altInput.value = '';
-        showToast('Não foi possível traduzir. Verifique se o idioma selecionado corresponde ao título.', 'warning');
-      }
-    }
-
-    async function parseHtmlSource() {
+    function parseHtmlSource() {
       const rawHtml = document.getElementById('htmlSourceCode').value.trim();
       if (!rawHtml) {
         showToast('Cole o código HTML no campo antes de extrair.', 'warning');
@@ -661,9 +538,18 @@
         const parser = new DOMParser();
         const doc = parser.parseFromString(rawHtml, 'text/html');
 
-        // 1. EXTRAÇÃO VIA JSON-LD (Yoast SEO / Schema.org)
+        // 1. EXTRAÇÃO DE TAGS (Estrutura Bakai: .mangaGenres__list + JSON-LD + Meta)
+        let extractedTags = [];
+
+        // 1A. Estrutura específica do Bakai (.mangaGenres__list .mangaGenres__item a)
+        const bakaiGenreLinks = doc.querySelectorAll('.mangaGenres__list .mangaGenres__item a, .mangaGenres__list a');
+        bakaiGenreLinks.forEach(link => {
+          const tagText = link.textContent.trim();
+          if (tagText) extractedTags.push(tagText);
+        });
+
+        // 1B. JSON-LD (Yoast SEO / Schema.org para outros sites)
         const jsonLdScripts = doc.querySelectorAll('script[type="application/ld+json"]');
-        let extractedKeywords = [];
         let jsonCover = '';
         let jsonTitle = '';
 
@@ -674,9 +560,9 @@
 
             graph.forEach(item => {
               if (item.keywords && Array.isArray(item.keywords)) {
-                extractedKeywords = extractedKeywords.concat(item.keywords);
+                extractedTags = extractedTags.concat(item.keywords);
               } else if (typeof item.keywords === 'string') {
-                extractedKeywords = extractedKeywords.concat(item.keywords.split(',').map(k => k.trim()));
+                extractedTags = extractedTags.concat(item.keywords.split(',').map(k => k.trim()));
               }
 
               if (item.thumbnailUrl) jsonCover = item.thumbnailUrl;
@@ -685,19 +571,70 @@
           } catch (e) {}
         });
 
+        // 1C. Meta Keywords tradicional
         const metaKeywords = doc.querySelector('meta[name="keywords"]')?.content;
         if (metaKeywords) {
-          extractedKeywords = extractedKeywords.concat(metaKeywords.split(',').map(k => k.trim()));
+          extractedTags = extractedTags.concat(metaKeywords.split(',').map(k => k.trim()));
         }
 
-        if (extractedKeywords.length > 0) {
+        if (extractedTags.length > 0) {
           const currentTags = document.getElementById('mangaTags').value;
           const existingList = currentTags ? currentTags.split(',').map(t => t.trim()).filter(Boolean) : [];
-          const uniqueTags = Array.from(new Set([...existingList, ...extractedKeywords])).filter(Boolean);
+          const uniqueTags = Array.from(new Set([...existingList, ...extractedTags])).filter(Boolean);
           document.getElementById('mangaTags').value = uniqueTags.join(', ');
         }
 
-        // 2. Extrair Título Original + Auto-Tradução para Título Alternativo
+        // 2. EXTRAÇÃO DE AUTOR E LINK DO AUTOR (Estrutura Bakai: .mangaInfoBox__row)
+        let extractedAuthor = '';
+        let extractedAuthorUrl = '';
+
+        const infoRows = doc.querySelectorAll('.mangaInfoBox__row');
+        infoRows.forEach(row => {
+          const label = row.querySelector('.mangaInfoBox__label')?.textContent.trim().toLowerCase() || '';
+          if (label.includes('artista') || label.includes('autor') || label.includes('author')) {
+            const valueEl = row.querySelector('.mangaInfoBox__value');
+            if (valueEl) {
+              const authorLink = valueEl.querySelector('a');
+              if (authorLink) {
+                extractedAuthor = authorLink.textContent.trim();
+                const href = authorLink.getAttribute('href');
+                if (href) {
+                  if (href.startsWith('http')) {
+                    extractedAuthorUrl = href;
+                  } else {
+                    const currentUrl = document.getElementById('mangaUrl').value.trim();
+                    if (currentUrl) {
+                      try {
+                        extractedAuthorUrl = new URL(href, currentUrl).href;
+                      } catch (e) {}
+                    }
+                  }
+                }
+              } else {
+                const plainText = valueEl.textContent.trim();
+                if (plainText) extractedAuthor = plainText;
+              }
+            }
+          }
+        });
+
+        // Fallback caso o site não use .mangaInfoBox__row
+        if (!extractedAuthor) {
+          const fullText = doc.body.textContent || rawHtml;
+          const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
+          if (authorMatch && authorMatch[1]) {
+            extractedAuthor = authorMatch[1].trim();
+          }
+        }
+
+        if (extractedAuthor) {
+          document.getElementById('mangaAuthor').value = extractedAuthor;
+        }
+        if (extractedAuthorUrl) {
+          document.getElementById('mangaAuthorUrl').value = extractedAuthorUrl;
+        }
+
+        // 3. Extrair Título Original
         const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
         const pageTitle = doc.querySelector('title')?.textContent;
         const rawTitle = (jsonTitle || ogTitle || pageTitle || '')
@@ -707,18 +644,6 @@
 
         if (rawTitle) {
           document.getElementById('mangaTitle').value = rawTitle;
-          const sourceLang = document.getElementById('sourceLangSelect').value;
-          const translation = await translateToPtBR(rawTitle, sourceLang);
-          if (translation.ok && translation.translated) {
-            document.getElementById('mangaAltTitle').value = translation.translated;
-          }
-        }
-
-        // 3. Extrair Autor (Busca textual explícita)
-        const fullText = doc.body.textContent || rawHtml;
-        const authorMatch = fullText.match(/(?:Artista|Autor|Author)\s*:\s*([^|<>\n\r]+)/i);
-        if (authorMatch && authorMatch[1]) {
-          document.getElementById('mangaAuthor').value = authorMatch[1].trim();
         }
 
         // 4. Extrair Capa
